@@ -156,57 +156,6 @@ def quit_program():
     connection.close()
     sys.exit()
 
-    
-def createTable():	
-	# SQL statement to execute
-	createStr = ("create table TOFFEES "
-	"(T_NAME VARCHAR(32), SUP_ID INTEGER, PRICE FLOAT, SALES INTEGER, TOTAL INTEGER)")
-	
-	try:
-		# Establish a connection in Python
-		connection = cx_Oracle.connect(conString)
-
-		# create a cursor 
-		curs = connection.cursor()
-		curs.execute("drop table TOFFEES")
-		curs.execute(createStr)
-		
-		data = [('Quadbury', 101, 7.99, 0, 0),('Quackburg',123,6.99,0,0),('Salty',145,20.99,0,0)]
-
-		cursInsert = connection.cursor()
-		cursInsert.bindarraysize = 1
-		cursInsert.setinputsizes(32, int, float, int, int)
-		cursInsert.executemany("INSERT INTO TOFFEES(T_NAME, SUP_ID, PRICE, SALES, TOTAL) "
-                                    "VALUES (:1, :2, :3, :4, :5)", data);
-		connection.commit()
-		
-		# executing a query
-		curs.execute("SELECT * from TOFFEES")
-		#get all data and print it
-		rows = curs.fetchall()
-		for row in rows:
-			print(row)
-		
-		curs.execute("SELECT COUNT(SUP_ID) from TOFFEES")
-
-		rows = curs.fetchall()
-		for row in rows:
-			print(row)
-
-		curs.execute("SELECT MIN(PRICE),MAX(PRICE),AVG(PRICE) from TOFFEES")
-		row = curs.fetchone()
-		print(row)
-
-		# close the connection
-		curs.close()
-		cursInsert.close()
-		connection.close()
-
-	except cx_Oracle.DatabaseError as exc:
-		error, = exc.args
-		print( sys.stderr, "Oracle code:", error.code)
-		print( sys.stderr, "Oracle message:", error.message)
 		
 if __name__ == "__main__":
-    #createTable()
     mainScreen()
