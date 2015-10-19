@@ -138,6 +138,7 @@ def register():
     query = "INSERT INTO users VALUES (:user_email, :user_pass, sysdate)" 
     curs.prepare(query)
     curs.execute(None, {'user_email':user_email, 'user_pass':user_pass})
+    connection.commit()
     
     #and then log the user in
     login(user_email, user_pass)
