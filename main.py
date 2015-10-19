@@ -145,8 +145,15 @@ def register():
     return (user_email, user_pass)
 
     
-def log_out():
-    #change the last_login day of the user
+def log_out(user_info):
+    #update last_login
+    user_email = user_info[0]
+    user_pass = user_info[1]
+
+    statement = "UPDATE users SET last_login = sysdate WHERE email = :user_email AND pass =:user_pass"
+    curs.prepare(statement)
+    curs.execute(None, {'user_email':user_email, 'user_pass':user_pass})
+    connection.commit()
     
 def quit_program():
     print("Quit")
