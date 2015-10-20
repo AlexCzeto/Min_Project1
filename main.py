@@ -9,10 +9,6 @@ import getpass # the package for getting password from user without displaying i
 connection = 0
 curs = 0
 
-#logout needs to change last logged in day
-
-
-
 def mainScreen():
     login_info = loginScreen()
     cont = 1
@@ -129,15 +125,30 @@ def login(user_email, user_pass):
         return 1
 
 def register():
+	"""
+	Registers a new user by adding their email and password to the users table. 
+	"""
     print("Register")
-
-    user_email = get_useremail()
-    user_pass = get_userpass()
+    registered = 0
     
-    # insert the row into users
-    query = "INSERT INTO users VALUES (:user_email, :user_pass, sysdate)" 
-    curs.prepare(query)
-    curs.execute(None, {'user_email':user_email, 'user_pass':user_pass})
+    while(registered == 0):
+        user_email = get_useremail()
+        user_pass = get_userpass()
+        
+        try:
+            # insert the row into users
+            query = "INSERT INTO users VALUES (:user_email, :user_pass, sysdate)" 
+            curs.prepare(query)
+            curs.execute(None, {'user_email':user_email, 'user_pass':user_pass})
+            registered = 1
+    
+        except cx_Oracle.IntegrityError as exc:
+            print("Ooops! It seems like that email has already been registered!")
+            choice = input("Enter 'l' to login with this email or 'r' to register a new one. ")
+            if choice == "l":
+                attempt_login()
+    
+    #commit the changes
     connection.commit()
     
     #and then log the user in
