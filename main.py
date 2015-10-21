@@ -37,7 +37,20 @@ def mainScreen():
         
 
 def search_flights(login_info):
-    pass
+    #delete_existing()
+    source = input("Enter source airport :")
+    dest = input("Enter destination airport :")
+    date = input("Enter date of flight :")
+    source = find_port(source)
+    dest = find_port(dest)
+    query = "SELECT s.flightno FROM sch_flights s ,flights f WHERE f.flightno = s.flightno and f.src = :source and dep_date = to_date(:sdate,'DD-Mon-YYYY') and f.dst = :dest" 
+    curs.prepare(query)
+    curs.execute(None,{'sdate':date,'source':source,'dest':dest})
+    rows= curs.fetchall()
+    for row in rows:
+        print(row)
+    return rows
+    
 
 def make_booking(login_info):
     pass
@@ -162,7 +175,52 @@ def quit_program():
     curs.close()
     connection.close()
     sys.exit()
+    
+# Helper Functions
+def delete_existing():
+    try:
+        query = "drop view available_flights"
+        curs.execute(query)
+        create_af
+    except cx_Oracle.DatabaseError as exc:
+        error, = exc.args
+        print( sys.stderr, "Oracle code:", error.code)
+        print( sys.stderr, "Oracle message:", error.message)
+    
+def create_af():
+    print("Hello")
+    query = "drop view available_flights"
+    curs.execute(query)
 
+def find_port(port_name):
+    port_name = port_name.upper()
+    #print(port_name)
+    if(len(port_name)== 3): 
+        #print(port_name)
+
+        query = "SELECT * FROM airports WHERE acode = :port " 
+        curs.prepare(query)
+        curs.execute(None,{'port':port_name})
+        result = curs.fetchall()
+
+        if(result):
+            print(result[0][0])
+            return result[0][0]
+        
+    port_name = "%"+port_name+"%"
+    query = "SELECT * FROM airports WHERE UPPER(city) LIKE :port OR UPPER(name) LIKE :port"
+    curs.prepare(query)
+    curs.execute(None,{'port':port_name})
+    
+    print("Your search was not a valid airport code please select the corresponding integer to one of the following")
+    rows = curs.fetchall()
+    i = 0
+    for row in rows:
+        print(i ," ",row[1],",",row[2],",",row[3])
+        i=i+1
+    select = int(input("You're selection:"))
+    print(rows[select][0])
+   
 		
 if __name__ == "__main__":
     mainScreen()
