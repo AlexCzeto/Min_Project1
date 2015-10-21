@@ -1,3 +1,4 @@
+
 # Note: Python does not have an auto commit. Thus, commit at the end of each statement is important.
 # File from introduction to cx_oracle
 
@@ -34,10 +35,25 @@ def mainScreen():
             quit_program()
             cont = 0
         
-        
+  
 
 def search_flights(login_info):
-    pass
+    delete_existing()
+    source = input("Enter source airport :")
+    dest = input("Enter destination airport :")
+    date = input("Enter date of flight :")
+    source = find_port(source)
+    dest = find_port(dest)
+    query = "SELECT flightno,src,dst,to_char(dep_time, 'hh24:mi'),to_char(arr_time, 'hh24:mi'),price,seats FROM available_flights WHERE src = :source and dep_date = to_date(:sdate,'DD-Mon-YYYY') and dst = :dest" 
+    curs.prepare(query)
+    curs.execute(None,{'sdate':date,'source':source,'dest':dest})
+    rows= curs.fetchall()
+    for row in rows:
+        print(row)
+    return rows
+    
+
+
 
 def make_booking(login_info):
     pass
@@ -66,7 +82,7 @@ def loginScreen():
 
     
     # The URL we are connnecting to
-    conString=''+'thunt'+'/' + 'lpoevaece12' +'@gwynne.cs.ualberta.ca:1521/CRS'
+    conString=''+'czeto'+'/' + 'smarT_pant5' +'@gwynne.cs.ualberta.ca:1521/CRS'
     
     try:
         # Establish a connection in Python
@@ -114,7 +130,7 @@ def attempt_login():
         user_email = get_useremail()
         user_pass = get_userpass()
         failed = login(user_email, user_pass)
-     return (user_email, user_pass)
+    return (user_email, user_pass)
 
 def login(user_email, user_pass):    
     #go into Oracle database, check the user exists
@@ -144,7 +160,6 @@ def register():
     login(user_email, user_pass)
     return (user_email, user_pass)
 
-    
 def log_out(user_info):
     #update last_login
     user_email = user_info[0]
@@ -163,6 +178,56 @@ def quit_program():
     connection.close()
     sys.exit()
 
-		
+# Helper Functions
+def delete_existing():
+    try:
+        query = "drop view available_flights"
+        curs.execute(query)
+        create_af()
+    except cx_Oracle.DatabaseError as exc:
+#        error, = exc.args
+#        print( sys.stderr, "Oracle code:", error.code)
+#        print( sys.stderr, "Oracle message:", error.message)
+        if(error.code == 942):
+#            print("caught error")
+            create_af()
+    
+    
+def create_af():
+    print("Hello")
+    query = "create view available_flights(flightno,dep_date, src,dst,dep_time,arr_time,fare,seats,price) as select f.flightno, sf.dep_date, f.src, f.dst, f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time)),f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time))+(f.est_dur/60+a2.tzone-a1.tzone)/24 , fa.fare, fa.limit-count(tno), fa.price from flights f, flight_fares fa, sch_flights sf, bookings b, airports a1, airports a2 where f.flightno=sf.flightno and f.flightno=fa.flightno and f.src=a1.acode and f.dst=a2.acode and fa.flightno=b.flightno(+) and fa.fare=b.fare(+) and sf.dep_date=b.dep_date(+)group by f.flightno, sf.dep_date, f.src, f.dst, f.dep_time, f.est_dur,a2.tzone,a1.tzone, fa.fare, fa.limit, fa.price having fa.limit-count(tno) > 0"
+    curs.execute(query)
+    connection.commit()
+
+def find_port(port_name):
+    port_name = port_name.upper()
+    #print(port_name)
+    if(len(port_name)== 3): 
+        #print(port_name)
+
+        query = "SELECT * FROM airports WHERE acode = :port " 
+        curs.prepare(query)
+        curs.execute(None,{'port':port_name})
+        result = curs.fetchall()
+
+        if(result):
+            print(result[0][0])
+            return result[0][0]
+        
+    port_name = "%"+port_name+"%"
+    query = "SELECT * FROM airports WHERE UPPER(city) LIKE :port OR UPPER(name) LIKE :port"
+    curs.prepare(query)
+    curs.execute(None,{'port':port_name})
+    
+    print("Your search was not a valid airport code please select the corresponding integer to one of the following")
+    rows = curs.fetchall()
+    i = 0
+    for row in rows:
+        print(i ," ",row[1],",",row[2],",",row[3])
+        i=i+1
+    select = int(input("You're selection:"))
+    print(rows[select][0])
+    return rows[select][0]
+	
 if __name__ == "__main__":
     mainScreen()
