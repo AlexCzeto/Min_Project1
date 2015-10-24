@@ -23,7 +23,7 @@ def mainScreen():
             flights = search_flights()
             print("Your search returned ", len(flights), " flights:")
             for flight in flights:
-                print(flights[0])
+                print(flight)
             
         if action == 2:
             make_booking(login_info)
@@ -38,21 +38,42 @@ def mainScreen():
         print("\n")
         
         
-
+# This function finds flights that relate to the users input 
+# Input: Source airport, destination airport, date 
+# Checks for both direct and indirect flights 
 def search_flights():
-    delete_existing()
+# Create view avialable flights
+    delete_af()
+    delete_gc()
     source = input("Enter source airport: ")
     source = find_port(source)
     dest = input("Enter destination airport: ")
     dest = find_port(dest)    
     date = input("Enter date of flight: ")
-    query = "SELECT flightno,src,dst,to_char(dep_time, 'hh24:mi'),to_char(arr_time, 'hh24:mi'),price,seats FROM available_flights WHERE src = :source and dep_date = to_date(:sdate,'DD-Mon-YYYY') and dst = :dest"     
-    curs.prepare(query)
-    curs.execute(None,{'sdate':date,'source':source,'dest':dest})
-    rows= curs.fetchall()
-    return rows
+    sort = input("Enter p to order the flights by price, and n to order the flights by number of connections: ")
     
+    if(sort=='p'):
+        print("Flights sorted by price")
+    
+        query = "select flightno1, flightno2,src, dst,to_char(dep_time,'hh24:mi'),to_char(arr_time,'hh24:mi'),stops, layover, price,seats from (select flightno1, flightno2,src,dst,dep_time,arr_time, 1 stops, layover, price, seats from good_connections where to_char(dep_date,'DD-Mon-YYYY')=:sdate and src=:ssrc and dst=:sdst union select flightno flightno1, '' flightno2,src,dst,dep_time,arr_time,0 stops,0 layover, price,seats from available_flights where to_char(dep_date,'DD-Mon-YYYY')=:sdate and src=:ssrc and dst=:sdst) order by price"
+        curs.prepare(query)
+        curs.execute(None,{'sdate':date,'ssrc':source,'sdst':dest})
+        flights=[]
+        rows = curs.fetchall()
+        return rows
+    
+
+    elif(sort=='n'):
+        print("Flights sorted by connection number")
+    
+        query = "select flightno1, flightno2,src, dst,to_char(dep_time,'hh24:mi'),to_char(arr_time,'hh24:mi'),stops, layover, price,seats from (select flightno1, flightno2,src,dst,dep_time,arr_time, 1 stops, layover, price, seats from good_connections where to_char(dep_date,'DD-Mon-YYYY')=:sdate and src=:ssrc and dst=:sdst union select flightno flightno1, '' flightno2,src,dst,dep_time,arr_time,0 stops,0 layover, price,seats from available_flights where to_char(dep_date,'DD-Mon-YYYY')=:sdate and src=:ssrc and dst=:sdst) order by stops"
+        curs.prepare(query)
+        curs.execute(None,{'sdate':date,'ssrc':source,'sdst':dest})
+        rows = curs.fetchall()
+        return rows
+ 
 def make_booking(login_info):
+ #   pas_name = input("Enter  
     """
     Make a booking. A user should be able to select a flight (or flights when 
     there are connections) from those returned for a search and book it. The 
@@ -68,6 +89,7 @@ def make_booking(login_info):
     number and a confirmation message if a ticket is issued or a descriptive message 
     if a ticket cannot be issued for any reason.
     """
+    
     flights = search_flights()
     
     # Fetch the flight to be booked
@@ -75,11 +97,15 @@ def make_booking(login_info):
     i = 1
     for flight in flights:
         print (i, flight)
+        i=i+1
     select = input("Please enter your selection: ")
     flight = flights[i-1]
     
-    # Book the flight
+    # Find passenger
+    name = input("Please enter the name of the passenger you wish to make the booking for :")
+    print(login_info,' ',name)
     
+    # Book the flight
     
     
 def list_bookings(login_info):
@@ -105,7 +131,7 @@ def loginScreen():
     pw = getpass.getpass()"""
     
     # The URL we are connnecting to
-    conString=''+'thunt'+'/' + 'lpoevaece12' +'@gwynne.cs.ualberta.ca:1521/CRS'
+    conString=''+'czeto'+'/' + 'smarT_pant5' +'@gwynne.cs.ualberta.ca:1521/CRS'
     
     try:
         # Establish a connection in Python
@@ -209,41 +235,97 @@ def log_out(user_info):
     curs.execute(None, {'user_email':user_email, 'user_pass':user_pass})
     connection.commit()
 
-def delete_existing():
+# This function makes sure that the creation of the view "avialable flights" will not cause and error 
+def delete_af():
+
+# Drops view if it already exists in database.
     try:
         query = "drop view available_flights"
         curs.execute(query)
         create_af()
     except cx_Oracle.DatabaseError as exc:
         error, = exc.args
+#        print( sys.stderr, "Oracle code:", error.code)
+#        print( sys.stderr, "Oracle message:", error.message)
+
+# If the user did not have an existing view "avialable flights", we will create this view
         if(error.code == 942):
+#            print("caught error")
             create_af()
+# This function makes sure that the creation of the view "good connections" will not cause and error 
+def delete_gc():
+
+# Drops view if it already exists in database.
+    try:
+        query = "drop view good_connections"
+        curs.execute(query)
+        create_gc()
+    except cx_Oracle.DatabaseError as exc:
+        error, = exc.args
+# If the user did not have an existing view "avialable flights", we will create this view
+        if(error.code == 942):
+#            print("caught error")
+            create_gc()
     
-    
+# This function creates the view "available flights"
+# The SQL for the creation of this view was taken from the Assigmnet 2 solution    
 def create_af():
-    query = "create view available_flights(flightno,dep_date, src,dst,dep_time,arr_time,fare,seats,price) as select f.flightno, sf.dep_date, f.src, f.dst, f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time)),f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time))+(f.est_dur/60+a2.tzone-a1.tzone)/24 , fa.fare, fa.limit-count(tno), fa.price from flights f, flight_fares fa, sch_flights sf, bookings b, airports a1, airports a2 where f.flightno=sf.flightno and f.flightno=fa.flightno and f.src=a1.acode and f.dst=a2.acode and fa.flightno=b.flightno(+) and fa.fare=b.fare(+) and sf.dep_date=b.dep_date(+)group by f.flightno, sf.dep_date, f.src, f.dst, f.dep_time, f.est_dur,a2.tzone,a1.tzone, fa.fare, fa.limit, fa.price having fa.limit-count(tno) > 0"
+    print("creating af")
+    try:
+        query = "create view available_flights(flightno,dep_date, src,dst,dep_time,arr_time,fare,seats,price) as select f.flightno, sf.dep_date, f.src, f.dst, f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time)),f.dep_time+(trunc(sf.dep_date)-trunc(f.dep_time))+(f.est_dur/60+a2.tzone-a1.tzone)/24 , fa.fare, fa.limit-count(tno), fa.price from flights f, flight_fares fa, sch_flights sf, bookings b, airports a1, airports a2 where f.flightno=sf.flightno and f.flightno=fa.flightno and f.src=a1.acode and f.dst=a2.acode and fa.flightno=b.flightno(+) and fa.fare=b.fare(+) and sf.dep_date=b.dep_date(+)group by f.flightno, sf.dep_date, f.src, f.dst, f.dep_time, f.est_dur,a2.tzone,a1.tzone, fa.fare, fa.limit, fa.price having fa.limit-count(tno) > 0"
+        curs.execute(query)
+    except cx_Oracle.DatabaseError as exc:
+        error, = exc.args
+        print( sys.stderr, "Oracle code:", error.code)
+        print( sys.stderr, "Oracle message:", error.message)
+
+    connection.commit()
+# Creates a modified version of the "good connections" view found in the assigment 2 answers 
+# Now groups by seats, departure, and arrival time for the over all flight
+# This allows us to access this data
+def create_gc():
+    print("creating gc")
+    query='''
+  create view good_connections (src,dst,dep_date,flightno1,flightno2, layover,price,seats,dep_time,arr_time) as
+  select a1.src, a2.dst, a1.dep_date, a1.flightno, a2.flightno, a2.dep_time-a1.arr_time,
+	min(a1.price+a2.price),LEAST (a1.seats,a2.seats),a1.dep_time,a2.arr_time
+  from available_flights a1, available_flights a2
+  where a1.dst=a2.src and a1.arr_time +1.5/24 <=a2.dep_time and a1.arr_time +5/24 >=a2.dep_time
+  group by a1.src, a2.dst, a1.dep_date, a1.flightno, a2.flightno, a2.dep_time, a1.arr_time,a1.dep_time,a2.arr_time,a1.seats,a2.seats
+'''
     curs.execute(query)
     connection.commit()
 
+    
 
+# This function finds a related airport code for the string passed 
+# First checks to see if the string is an exact match for an airport code 
+# If not, gives user a list of possible airports 
+# Returns an airport code form the database in all cases 
 def find_port(port_name):
     port_name = port_name.upper()
+
+#If the string is in airport code format, check for an exact match 
+
     if(len(port_name)== 3): 
         query = "SELECT * FROM airports WHERE acode = :port " 
         curs.prepare(query)
         curs.execute(None,{'port':port_name})
         result = curs.fetchall()
-
+        print(result)
         if(result): 
             return result[0][0]
-    
-    # There was not an exact match!
+
+# There was not an exact match!
+# Pattern matches string to a city or airport name in the database 
     port_name = "%"+port_name+"%"
     query = "SELECT * FROM airports WHERE UPPER(city) LIKE :port OR UPPER(name) LIKE :port"
     curs.prepare(query)
     curs.execute(None,{'port':port_name})
 
     rows = curs.fetchall()
+
+# User must now select one of the airport codes existing in the database 
     print("You did not enter a valid airport code! \n Which of the following did you mean?")
     i = 1
     for row in rows:
@@ -262,4 +344,3 @@ def quit_program():
 
 if __name__ == "__main__":
     mainScreen()
-
